@@ -14,6 +14,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -35,6 +36,7 @@ object EchoServiceManager {
 fun EchoScreen(modifier: Modifier=Modifier) {
     val context = LocalContext.current
     var isServiceRunning by remember { EchoServiceManager.isServiceRunning }
+    var echoDelay by remember { mutableStateOf(500f) }
 
     val requiredPermissions = remember {
         mutableListOf<String>().apply {
@@ -84,6 +86,16 @@ fun EchoScreen(modifier: Modifier=Modifier) {
             ) {
                 Text("Start Echo")
             }
+
+            // Echo Delay Slider UI
+            Text("Echo Delay: ${echoDelay.toInt()} ms", style = MaterialTheme.typography.bodyMedium)
+            Slider(
+                value = echoDelay,
+                onValueChange = { echoDelay = it },
+                valueRange = 100f..3000f,
+                steps = 28, // Creates steps at every 100ms increment from 100ms to 3000ms
+                modifier = Modifier.padding(vertical = 16.dp)
+            )
 
             Spacer(modifier = Modifier.height(16.dp))
 
