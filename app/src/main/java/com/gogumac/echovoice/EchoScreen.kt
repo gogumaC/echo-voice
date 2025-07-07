@@ -78,14 +78,7 @@ fun EchoScreen(modifier: Modifier=Modifier) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Button(
-                onClick = {
-                    checkPermissionsAndStartService(context, requiredPermissions, permissionsLauncher)
-                },
-                enabled = !isServiceRunning
-            ) {
-                Text("Start Echo")
-            }
+
 
             // Echo Delay Slider UI
             Text("Echo Delay: ${echoDelay.toInt()} ms", style = MaterialTheme.typography.bodyMedium)
@@ -96,6 +89,17 @@ fun EchoScreen(modifier: Modifier=Modifier) {
                 steps = 28, // Creates steps at every 100ms increment from 100ms to 3000ms
                 modifier = Modifier.padding(vertical = 16.dp)
             )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Button(
+                onClick = {
+                    checkPermissionsAndStartService(context, requiredPermissions, permissionsLauncher)
+                },
+                enabled = !isServiceRunning
+            ) {
+                Text("Start Echo")
+            }
 
             Spacer(modifier = Modifier.height(16.dp))
 
