@@ -40,7 +40,7 @@ class EchoService : Service() {
     private val serviceScope =
         CoroutineScope(Dispatchers.IO + serviceJob)
 
-    private val echoDelayMillis = 500L // 1 seconds delay
+    private var echoDelayMillis = 500L // 1 seconds delay
 
     override fun onCreate() {
         super.onCreate()
@@ -138,6 +138,7 @@ class EchoService : Service() {
                     val readResult = audioRecord?.read(audioBuffer, 0, audioBuffer.size) ?: 0
                     if (readResult > 0) {
                         Log.i(TAG, "Loop: Read $readResult bytes from AudioRecord. Delaying for $echoDelayMillis ms...")
+                        echoDelayMillis = getSharedPreferences("echo_prefs", MODE_PRIVATE).getInt("delay", 500).toLong()
                         // Introduce delay before playing
                         delay(echoDelayMillis)
                         if (isPlaying && isActive) { // Check if still supposed to be playing

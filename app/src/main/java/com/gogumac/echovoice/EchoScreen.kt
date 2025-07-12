@@ -24,19 +24,22 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.gogumac.echovoice.ui.theme.EchoVoiceTheme
 
-// A simple way to track service state from Compose.
-// For more robust state management, consider a ViewModel or observing service state via LiveData/Flow.
-object EchoServiceManager {
-    var isServiceRunning = mutableStateOf(false) // Observable state
-}
 
 @Composable
 fun EchoScreen(modifier: Modifier=Modifier) {
     val context = LocalContext.current
-    var isServiceRunning by remember { EchoServiceManager.isServiceRunning }
-    var echoDelay by remember { mutableStateOf(500f) }
+    val viewModel: EchoViewModel = viewModel(factory = object : ViewModelProvider.Factory {
+        override fun <T : ViewModel> create(modelClass: Class<T>): T {
+            return EchoViewModel(initialDelay = 500f) as T
+        }
+    })
+    val isServiceRunning = viewModel.isServiceRunning
+    val echoDelay = viewModel.echoDelay
 
     val requiredPermissions = remember {
         mutableListOf<String>().apply {
@@ -61,7 +64,7 @@ fun EchoScreen(modifier: Modifier=Modifier) {
             }
         }
         if (allGranted) {
-            startEchoService(context)
+            startEchoService(context, viewModel)
         } else {
             Toast.makeText(context, "Permissions denied. Echo cannot start.", Toast.LENGTH_LONG).show()
         }
@@ -84,7 +87,11 @@ fun EchoScreen(modifier: Modifier=Modifier) {
             Text("Echo Delay: ${echoDelay.toInt()} ms", style = MaterialTheme.typography.bodyMedium)
             Slider(
                 value = echoDelay,
-                onValueChange = { echoDelay = it },
+                onValueChange = {
+                    viewModel.updateEchoDelay(it)
+                    context.getSharedPreferences("echo_prefs", Context.MODE_PRIVATE)
+                        .edit().putInt("delay", it.toInt()).apply()
+                },
                 valueRange = 100f..3000f,
                 steps = 28, // Creates steps at every 100ms increment from 100ms to 3000ms
                 modifier = Modifier.padding(vertical = 16.dp)
@@ -94,7 +101,7 @@ fun EchoScreen(modifier: Modifier=Modifier) {
 
             Button(
                 onClick = {
-                    checkPermissionsAndStartService(context, requiredPermissions, permissionsLauncher)
+                    checkPermissionsAndStartService(context, requiredPermissions, permissionsLauncher, viewModel)
                 },
                 enabled = !isServiceRunning
             ) {
@@ -105,7 +112,7 @@ fun EchoScreen(modifier: Modifier=Modifier) {
 
             Button(
                 onClick = {
-                    stopEchoService(context)
+                    stopEchoService(context, viewModel)
                 },
                 enabled = isServiceRunning
             ) {
@@ -118,24 +125,27 @@ fun EchoScreen(modifier: Modifier=Modifier) {
 private fun checkPermissionsAndStartService(
     context: Context,
     permissions: Array<String>,
-    launcher: androidx.activity.result.ActivityResultLauncher<Array<String>>
+    launcher: androidx.activity.result.ActivityResultLauncher<Array<String>>,
+    viewModel: EchoViewModel
 ) {
     val permissionsToRequest = permissions.filter {
         ContextCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED
     }
 
     if (permissionsToRequest.isEmpty()) {
-        startEchoService(context)
+        startEchoService(context, viewModel)
     } else {
         launcher.launch(permissionsToRequest.toTypedArray())
     }
 }
 
-private fun startEchoService(context: Context) {
-    if (!EchoServiceManager.isServiceRunning.value) {
+private fun startEchoService(context: Context, viewModel: EchoViewModel) {
+    if (!viewModel.isServiceRunning) {
         Log.d("EchoScreen", "Attempting to start EchoService...")
 
-        val serviceIntent = Intent(context, EchoService::class.java)
+        val serviceIntent = Intent(context, EchoService::class.java).apply {
+            putExtra("delay", viewModel.echoDelay.toInt())
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             Log.d("checkfor","start>>>")
             context.startForegroundService(serviceIntent)
@@ -143,16 +153,16 @@ private fun startEchoService(context: Context) {
             context.startService(serviceIntent)
         }
         Log.d("EchoScreen", "Called startForegroundService/startService for EchoService.")
-        EchoServiceManager.isServiceRunning.value = true
+        viewModel.updateServiceRunning(true)
         Toast.makeText(context, "Echo service started", Toast.LENGTH_SHORT).show()
     }
 }
 
-private fun stopEchoService(context: Context) {
-    if (EchoServiceManager.isServiceRunning.value) {
+private fun stopEchoService(context: Context, viewModel: EchoViewModel) {
+    if (viewModel.isServiceRunning) {
         val serviceIntent = Intent(context, EchoService::class.java)
         context.stopService(serviceIntent)
-        EchoServiceManager.isServiceRunning.value = false
+        viewModel.updateServiceRunning(false)
         Toast.makeText(context, "Echo service stopped", Toast.LENGTH_SHORT).show()
     }
 }
